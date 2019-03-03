@@ -1,6 +1,7 @@
 # Python 2/3 compatibility
 from __future__ import print_function
 
+import time
 import operator
 import itertools
 
@@ -39,6 +40,13 @@ class Cuboid:
         # Save vertices
         self.vertices = self.get_vertices()
 
+        # Optimization
+        self.rot33 = self.rotation_matrix[:3, :3]
+        self.rot33_opt = np.vstack([self.rot33, self.rot33, self.rot33])
+        self.normals = self.rotation_matrix[:3, :3].T
+        self.normals_opt = np.asarray([self.normals[0], self.normals[0], self.normals[0], 
+                                       self.normals[1], self.normals[1], self.normals[1],
+                                       self.normals[2], self.normals[2], self.normals[2]])
     def get_vertices(self):
         ops = list(itertools.product([operator.add, operator.sub], repeat=3))
         vertices = [(op[0](0, self.xdim / 2.0), 
@@ -48,71 +56,96 @@ class Cuboid:
         return vertices
 
 
-def display_cuboids(cuboids, title=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_aspect('equal')
+class CollisionChecker:
+    def __init__(self):
+        pass
 
-    # Equalize display aspect ratio for all axes
-    points = np.asarray([0, 0, 0])
-    for cuboid in cuboids: points = np.vstack((points, cuboid.vertices))
-    max_range = (np.array([points[:, 0].max() - points[:, 0].min(), 
-                           points[:, 1].max() - points[:, 1].min(),
-                           points[:, 2].max() - points[:, 2].min()]).max() / 2.0)
-    mid_x = (points[:, 0].max() + points[:, 0].min()) * 0.5
-    mid_y = (points[:, 1].max() + points[:, 1].min()) * 0.5
-    mid_z = (points[:, 2].max() + points[:, 2].min()) * 0.5
-    ax.set_xlim(mid_x - max_range, mid_x + max_range)
-    ax.set_ylim(mid_y - max_range, mid_y + max_range)
-    ax.set_zlim(mid_z - max_range, mid_z + max_range)
-    
-    edges = lambda x: [[x[0], x[1], x[3], x[2]], [x[4], x[5], x[7], x[6]],
-                       [x[0], x[1], x[5], x[4]], [x[2], x[3], x[7], x[6]],
-                       [x[0], x[2], x[6], x[4]], [x[5], x[7], x[3], x[1]]]
-    
-    colors = plt.get_cmap('tab10')
-    for i, cuboid in enumerate(cuboids):
-        ax.add_collection3d(Poly3DCollection(edges(cuboid.vertices), linewidths=2, edgecolors='k', alpha=0.5, facecolor=colors(i % 10)))
-        ax.scatter(cuboid.vertices[:, 0], cuboid.vertices[:, 1], cuboid.vertices[:, 2], c='r')
+    def get_normals(self, cub1, cub2):
+        normals = []
+        for i in range(3):
+            # Cube normals (x6)
+            normals.append(cub1.rotation_matrix[:3, i])
+            normals.append(cub2.rotation_matrix[:3, i])
+            
+            # Normals of normals (x9)
+            normals += np.array_split((np.cross(cub1.rotation_matrix[:3, i], 
+                cub2.rotation_matrix[:3, :3]).flatten()), 3)
+            
+        return np.asarray(normals)
 
-    ax.set_xlabel('X-Axis')
-    ax.set_ylabel('Y-Axis')
-    ax.set_zlabel('Z-Axis')
-    plt.title(title)
-    fig.savefig('%s.jpg' % title, dpi=480, bbox_inches='tight')
-    # plt.show()
+    def detect_collision(self, cub1, cub2):
+        # Caluclate all 15 normals
+        normals = self.get_normals(cub1, cub2)
+        for normal in normals:
+            # Calculate projections
+            projects1 = inner1d(normal, cub1.vertices)
+            projects2 = inner1d(normal, cub2.vertices)
+            
+            # Gap detected
+            if np.max(projects1) < np.min(projects2) or \
+               np.max(projects2) < np.min(projects1): return False
 
+        return True
 
-def get_normals(cub1, cub2):
-    normals = []
-    for i in range(3):
-        # Cube normals (x6)
-        normals.append(cub1.rotation_matrix[:3, i])
-        normals.append(cub2.rotation_matrix[:3, i])
+    def detect_collision_optimized(self, cub1, cub2):
+        # Caluclate all 15 normals
+        normals = np.zeros((15, 3))
+        normals[0:3, :] = cub1.normals
+        normals[3:6, :] = cub2.normals
+        normals[6:15, :] = np.cross(cub1.normals_opt, cub2.rot33_opt)
+
+        for normal in normals:
+            # Calculate projections
+            projects1 = inner1d(normal, cub1.vertices)
+            projects2 = inner1d(normal, cub2.vertices)
+            
+            # Gap detected
+            if np.max(projects1) < np.min(projects2) or \
+               np.max(projects2) < np.min(projects1): return False
+
+        return True
+
+    def display_cuboids(self, cuboids, title=None, savefile=None):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_aspect('equal')
+
+        # Equalize display aspect ratio for all axes
+        points = np.asarray([0, 0, 0])
+        for cuboid in cuboids: points = np.vstack((points, cuboid.vertices))
+        max_range = (np.array([points[:, 0].max() - points[:, 0].min(), 
+                               points[:, 1].max() - points[:, 1].min(),
+                               points[:, 2].max() - points[:, 2].min()]).max() / 2.0)
+        mid_x = (points[:, 0].max() + points[:, 0].min()) * 0.5
+        mid_y = (points[:, 1].max() + points[:, 1].min()) * 0.5
+        mid_z = (points[:, 2].max() + points[:, 2].min()) * 0.5
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
         
-        # Normals of normals (x9)
-        normals += np.array_split((np.cross(cub1.rotation_matrix[:3, i], 
-            cub2.rotation_matrix[:3, :3]).flatten()), 3)
+        edges = lambda x: [[x[0], x[1], x[3], x[2]], [x[4], x[5], x[7], x[6]],
+                           [x[0], x[1], x[5], x[4]], [x[2], x[3], x[7], x[6]],
+                           [x[0], x[2], x[6], x[4]], [x[5], x[7], x[3], x[1]]]
         
-    return np.asarray(normals)
+        colors = plt.get_cmap('tab10')
+        for i, cuboid in enumerate(cuboids):
+            ax.add_collection3d(Poly3DCollection(edges(cuboid.vertices), linewidths=2, edgecolors='k', alpha=0.5, facecolor=colors(i % 10)))
+            ax.scatter(cuboid.vertices[:, 0], cuboid.vertices[:, 1], cuboid.vertices[:, 2], c='r')
 
-
-def detect_collision(cub1, cub2):
-    # Caluclate all 15 normals
-    normals = get_normals(cub1, cub2)
-    for normal in normals:
-        # Calculate projections
-        projects1 = inner1d(normal, cub1.vertices)
-        projects2 = inner1d(normal, cub2.vertices)
-        
-        # Gap detected
-        if np.max(projects1) < np.min(projects2) or \
-           np.max(projects2) < np.min(projects1): return False
-
-    return True
+        ax.set_xlabel('X-Axis')
+        ax.set_ylabel('Y-Axis')
+        ax.set_zlabel('Z-Axis')
+        plt.title(title)
+        if savefile:
+            fig.savefig('%s.jpg' % savefile, dpi=480, bbox_inches='tight')
+        else:
+            plt.show()
 
 
 def run_test_cases():
+    # Collision checker
+    collision_checker = CollisionChecker()
+
     # Reference cuboid
     cuboid_ref = Cuboid([0, 0, 0], [0, 0, 0], [3, 1, 2])
 
@@ -128,9 +161,16 @@ def run_test_cases():
 
     # Check collisions
     for i, test_cuboid in enumerate(test_cuboids):
-        ret = detect_collision(cuboid_ref, test_cuboid)
+        ret = collision_checker.detect_collision_optimized(cuboid_ref, test_cuboid)
         print('Cuboid %d Collision:' % (i + 1), ret)
-        display_cuboids([cuboid_ref, test_cuboid], title='Cuboid %d Collision: %s\n' % (i + 1, ret))
+        collision_checker.display_cuboids([cuboid_ref, test_cuboid],
+            title='Cuboid %d Collision: %s\n' % (i + 1, ret))
+
+    # Time check
+    start_time = time.time()
+    for test_cuboid in test_cuboids[:3] + test_cuboids * 4:
+        ret = collision_checker.detect_collision_optimized(cuboid_ref, test_cuboid)
+    print('35 Checks Took:', time.time() - start_time)
 
 if __name__ == '__main__':
     run_test_cases()
