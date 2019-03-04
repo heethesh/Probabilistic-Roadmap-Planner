@@ -456,6 +456,7 @@
    </link>
    <joint name="joint_1" type="revolute">
       <origin rpy="0 0 0" xyz="0 0 0.072"/>
+      <!-- <origin rpy="0 0 0" xyz="-0.0896 0.0003875 0.159"/> -->
       <parent link="arm_base_link"/>
       <child link="shoulder_link"/>
       <axis xyz="0 0 1"/>

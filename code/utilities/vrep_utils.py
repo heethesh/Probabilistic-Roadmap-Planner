@@ -5,10 +5,7 @@ import time
 from sets import Set
 
 sys.path.append(os.getcwd())
-try:
-    from lib import vrep
-except:
-    print ('"vrep.py" could not be imported. Check for the library file')
+from lib2 import vrep
 
 # Import application libraries
 import numpy as np
@@ -117,9 +114,10 @@ def set_joint_force(clientID, handle, force):
 
 def get_object_position(clientID, handle, relative_to_handle=-1):
     '''Return the object position in reference to the relative handle.'''
-    response, position = vrep.simxGetObjectPosition(clientID, 
+    response, position = vrep.simxGetObjectPosition(clientID,
                                                     handle,
-                                                    relative_to_handle)
+                                                    relative_to_handle,
+                                                    vrep.simx_opmode_blocking)
     if response != 0:
         print("Error: Cannot query position for handle {} with reference to {}".
                 format(handle, relative_to_handle))
@@ -127,13 +125,25 @@ def get_object_position(clientID, handle, relative_to_handle=-1):
 
 def get_object_orientation(clientID, handle, reference_handle=-1):
     '''Return the object orientation in reference to the relative handle.'''
-    response, orientation = vrep.simxGetObjectOrientation(clientID, 
+    response, orientation = vrep.simxGetObjectOrientation(clientID,
                                                           handle,
-                                                          relative_to_handle)
+                                                          reference_handle,
+                                                          vrep.simx_opmode_blocking)
     if response != 0:
         print("Error: Cannot query position for handle {} with reference to {}".
                 format(handle, reference_handle))
     return orientation
+
+def get_object_quaternion(clientID, handle, reference_handle=-1):
+    '''Return the object quaternion in reference to the relative handle.'''
+    response, quaternion = vrep.simxGetObjectQuaternion(clientID,
+                                                        handle,
+                                                        reference_handle,
+                                                        vrep.simx_opmode_blocking)
+    if response != 0:
+        print("Error: Cannot query position for handle {} with reference to {}".
+                format(handle, reference_handle))
+    return quaternion
 
 def get_object_bounding_box(clientID, handle):
     '''Return the bounding box for the given object handle.'''
@@ -145,7 +155,7 @@ def get_object_bounding_box(clientID, handle):
     for pos in position_to_param_id.keys():
         param_id = position_to_param_id[pos]
         response, value = vrep.simxGetObjectFloatParameter(
-                clientID, handle, param_id)
+                clientID, handle, param_id, vrep.simx_opmode_blocking)
         if response != 0:
             print("Error {}: Cannot get value for param {}".format(
                 response, pos))

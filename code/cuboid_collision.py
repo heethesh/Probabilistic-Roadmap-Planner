@@ -10,26 +10,27 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.core.umath_tests import inner1d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-from tf.transformations import euler_matrix, rotation_matrix, translation_matrix
+from tf.transformations import euler_matrix, rotation_matrix, translation_matrix, quaternion_matrix
 
 
 class Cuboid:
-    def __init__(self, origin, rpy, dxyz):
+    def __init__(self, origin, angles, dxyz):
         # Check dimensions
-        assert len(origin) == 3
-        assert len(rpy) == 3
         assert len(dxyz) == 3
+        assert len(origin) == 3
+        assert len(angles) == 3 or len(angles) == 4
 
         # Origin
         self.origin = np.asarray(origin)
         self.origin_matrix = translation_matrix(origin)
 
         # Orientation
-        self.rpy = np.asarray(rpy)
-        self.rotation_matrix = euler_matrix(rpy[0], rpy[1], rpy[2])
+        self.angles = np.asarray(angles)
+        if len(angles) == 3: self.rot_matrix = euler_matrix(angles[0], angles[1], angles[2])
+        elif len(angles) == 4: self.rot_matrix = quaternion_matrix(angles)
 
         # Transformation
-        self.transform_matrix = np.matmul(self.origin_matrix, self.rotation_matrix)
+        self.transform_matrix = np.matmul(self.origin_matrix, self.rot_matrix)
 
         # Dimensions
         self.dxyz = np.asarray(dxyz)
@@ -41,12 +42,13 @@ class Cuboid:
         self.vertices = self.get_vertices()
 
         # Optimization
-        self.rot33 = self.rotation_matrix[:3, :3]
+        self.rot33 = self.rot_matrix[:3, :3]
         self.rot33_opt = np.vstack([self.rot33, self.rot33, self.rot33])
-        self.normals = self.rotation_matrix[:3, :3].T
+        self.normals = self.rot_matrix[:3, :3].T
         self.normals_opt = np.asarray([self.normals[0], self.normals[0], self.normals[0], 
                                        self.normals[1], self.normals[1], self.normals[1],
                                        self.normals[2], self.normals[2], self.normals[2]])
+    
     def get_vertices(self):
         ops = list(itertools.product([operator.add, operator.sub], repeat=3))
         vertices = [(op[0](0, self.xdim / 2.0), 
@@ -64,12 +66,12 @@ class CollisionChecker:
         normals = []
         for i in range(3):
             # Cube normals (x6)
-            normals.append(cub1.rotation_matrix[:3, i])
-            normals.append(cub2.rotation_matrix[:3, i])
+            normals.append(cub1.rot_matrix[:3, i])
+            normals.append(cub2.rot_matrix[:3, i])
             
             # Normals of normals (x9)
-            normals += np.array_split((np.cross(cub1.rotation_matrix[:3, i], 
-                cub2.rotation_matrix[:3, :3]).flatten()), 3)
+            normals += np.array_split((np.cross(cub1.rot_matrix[:3, i], 
+                cub2.rot_matrix[:3, :3]).flatten()), 3)
             
         return np.asarray(normals)
 
@@ -113,12 +115,15 @@ class CollisionChecker:
         # Equalize display aspect ratio for all axes
         points = np.asarray([0, 0, 0])
         for cuboid in cuboids: points = np.vstack((points, cuboid.vertices))
+        
         max_range = (np.array([points[:, 0].max() - points[:, 0].min(), 
                                points[:, 1].max() - points[:, 1].min(),
                                points[:, 2].max() - points[:, 2].min()]).max() / 2.0)
+        
         mid_x = (points[:, 0].max() + points[:, 0].min()) * 0.5
         mid_y = (points[:, 1].max() + points[:, 1].min()) * 0.5
         mid_z = (points[:, 2].max() + points[:, 2].min()) * 0.5
+        
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
@@ -135,11 +140,10 @@ class CollisionChecker:
         ax.set_xlabel('X-Axis')
         ax.set_ylabel('Y-Axis')
         ax.set_zlabel('Z-Axis')
-        plt.title(title)
-        if savefile:
-            fig.savefig('%s.jpg' % savefile, dpi=480, bbox_inches='tight')
-        else:
-            plt.show()
+
+        if title: plt.title(title)
+        if savefile: fig.savefig('%s.jpg' % savefile, dpi=480, bbox_inches='tight')
+        else: plt.show()
 
 
 def run_test_cases():
@@ -163,8 +167,8 @@ def run_test_cases():
     for i, test_cuboid in enumerate(test_cuboids):
         ret = collision_checker.detect_collision_optimized(cuboid_ref, test_cuboid)
         print('Cuboid %d Collision:' % (i + 1), ret)
-        collision_checker.display_cuboids([cuboid_ref, test_cuboid],
-            title='Cuboid %d Collision: %s\n' % (i + 1, ret))
+        # collision_checker.display_cuboids([cuboid_ref, test_cuboid],
+        #     title='Cuboid %d Collision: %s\n' % (i + 1, ret))
 
     # Time check
     start_time = time.time()

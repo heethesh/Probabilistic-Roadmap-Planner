@@ -15,6 +15,8 @@ import numpy as np
 import vrep_utils as vu
 import matplotlib.pyplot as plt
 
+import forward_kinematics as fk
+
 ###############################################################################
 
 class ArmController:
@@ -130,38 +132,15 @@ def main(args):
     # One step to process the above settings
     vu.step_sim(clientID)
 
-    deg_to_rad = np.pi/180.
+    # Joint targets, radians for revolute joints and meters for prismatic joints
+    gripper_targets = np.asarray([[-0.03, 0.03], [-0.03, 0.03]])
+    joint_targets = np.radians([[-80, 0, 0, 0, 0], [0, 60, -75, -75, 0]])
 
-    # Joint targets. Specify in radians for revolute joints and meters for prismatic joints.
-    # The order of the targets are as follows:
-    #   joint_1 / revolute  / arm_base_link <- shoulder_link
-    #   joint_2 / revolute  / shoulder_link <- elbow_link
-    #   joint_3 / revolute  / elbow_link    <- forearm_link
-    #   joint_4 / revolute  / forearm_link  <- wrist_link
-    #   joint_5 / revolute  / wrist_link    <- gripper_link
-    #   joint_6 / prismatic / gripper_link  <- finger_r
-    #   joint_7 / prismatic / gripper_link  <- finger_l
-    joint_targets = [[  0.,
-                        0.,
-                        0.,
-                        0.,
-                        0.,
-                      - 0.07,
-                        0.07], \
-                     [-45.*deg_to_rad,
-                      -15.*deg_to_rad,
-                       20.*deg_to_rad,
-                       15.*deg_to_rad,
-                      -75.*deg_to_rad,
-                      - 0.03,
-                        0.03], \
-                     [ 30.*deg_to_rad,
-                       60.*deg_to_rad,
-                      -65.*deg_to_rad,
-                       45.*deg_to_rad,
-                        0.*deg_to_rad,
-                      - 0.05,
-                        0.05]]
+    # Verify fk
+    robot = fk.parse_urdf('urdf/locobot_description_v3.urdf')
+    for target in joint_targets:
+        pose = fk.getWristPose(target[:5], robot, vu.ARM_JOINT_NAMES[:5])
+        print(pose)
 
     # Instantiate controller
     controller = ArmController()
@@ -176,7 +155,7 @@ def main(args):
         while not steady_state_reached:
 
             timestamp = vu.get_sim_time_seconds(clientID)
-            print('Simulation time: {} sec'.format(timestamp))
+            # print('Simulation time: {} sec'.format(timestamp))
 
             # Get current joint positions
             sensed_joint_positions = vu.get_arm_joint_positions(clientID)
@@ -197,7 +176,7 @@ def main(args):
     vu.stop_sim(clientID)
 
     # Plot time histories
-    controller.plot()
+    # controller.plot()
 
 
 if __name__ == "__main__":

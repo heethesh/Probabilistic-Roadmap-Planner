@@ -8,16 +8,22 @@ import numpy as np
 from urdf_parser_py.urdf import URDF
 from tf.transformations import euler_matrix, rotation_matrix, translation_matrix, decompose_matrix
 
+from utils import block_printing
+
 PKG_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+
+@block_printing
 def parse_urdf(filename):
     return URDF.from_xml_file(os.path.join(PKG_PATH, filename))
+
 
 def find_joint(robot, name):
     for joint in robot.joints:
         if joint.name == name:
             return joint
     return None
+
 
 def get_joint_data(robot, name):
     joint = find_joint(robot, name)
@@ -26,6 +32,7 @@ def get_joint_data(robot, name):
     R = euler_matrix(r, p, y)
     axis = np.asarray(joint.axis)
     return np.matmul(T, R), axis
+
 
 def getWristPose(joint_angle_list, robot, joint_names, intermediate_pose=False):
     '''Get the wrist pose for given joint angle configuration.
@@ -55,6 +62,7 @@ def getWristPose(joint_angle_list, robot, joint_names, intermediate_pose=False):
     else:
         return pose
 
+
 def getWristJacobian(joint_angle_list, robot, joint_names):
     '''Get the wrist jacobian for given joint angle configuration.
 
@@ -80,6 +88,7 @@ def getWristJacobian(joint_angle_list, robot, joint_names):
 
     return jacobian
     
+
 def main(args):
     # Joint angles
     joint_angles = args.joints
@@ -97,6 +106,7 @@ def main(args):
 
     print('Wrist Pose:\n{}'.format(np.array_str(np.array(pose), precision=3)))
     print('Jacobian:\n{}'.format(np.array_str(np.array(jacobian), precision=3)))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
