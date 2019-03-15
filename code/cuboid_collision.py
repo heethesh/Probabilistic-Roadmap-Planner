@@ -10,15 +10,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.core.umath_tests import inner1d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-from tf.transformations import euler_matrix, rotation_matrix, translation_matrix, quaternion_matrix
+from tf.transformations import euler_matrix, translation_matrix, quaternion_matrix, rotation_matrix
 
 
 class Cuboid:
-    def __init__(self, origin, angles, dxyz):
+    def __init__(self, origin, angles, dxyz, name=None, vrep=False):
         # Check dimensions
         assert len(dxyz) == 3
         assert len(origin) == 3
         assert len(angles) == 3 or len(angles) == 4
+
+        # Cuboid name
+        if name: self.name = name
 
         # Origin
         self.origin = np.asarray(origin)
@@ -26,8 +29,11 @@ class Cuboid:
 
         # Orientation
         self.angles = np.asarray(angles)
-        if len(angles) == 3: self.rot_matrix = euler_matrix(angles[0], angles[1], angles[2])
-        elif len(angles) == 4: self.rot_matrix = quaternion_matrix(angles)
+        if vrep:
+            self.rot_matrix = Cuboid.vrep_rotation_matrix(self.angles)
+        else:
+            if len(angles) == 3: self.rot_matrix = euler_matrix(angles[0], angles[1], angles[2])
+            elif len(angles) == 4: self.rot_matrix = quaternion_matrix(angles)
 
         # Transformation
         self.transform_matrix = np.matmul(self.origin_matrix, self.rot_matrix)
@@ -56,6 +62,13 @@ class Cuboid:
                      op[2](0, self.zdim / 2.0), 1) for op in ops ]
         vertices = np.matmul(self.transform_matrix, np.asarray(vertices).T).T[:, :3]
         return vertices
+
+    @staticmethod
+    def vrep_rotation_matrix(rpy):
+        roll = rotation_matrix(rpy[0], [1, 0, 0])
+        pitch = rotation_matrix(rpy[1], [0, 1, 0])
+        yaw = rotation_matrix(rpy[2], [0, 0, 1])
+        return np.matmul(np.matmul(roll, pitch), yaw)
 
 
 class CollisionChecker:
@@ -107,7 +120,8 @@ class CollisionChecker:
 
         return True
 
-    def display_cuboids(self, cuboids, title=None, savefile=None):
+    @staticmethod
+    def display_cuboids(cuboids, title=None, savefile=None):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.set_aspect('equal')
@@ -128,10 +142,12 @@ class CollisionChecker:
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
         
+        # Compute edges
         edges = lambda x: [[x[0], x[1], x[3], x[2]], [x[4], x[5], x[7], x[6]],
                            [x[0], x[1], x[5], x[4]], [x[2], x[3], x[7], x[6]],
                            [x[0], x[2], x[6], x[4]], [x[5], x[7], x[3], x[1]]]
         
+        # Draw faces
         colors = plt.get_cmap('tab10')
         for i, cuboid in enumerate(cuboids):
             ax.add_collection3d(Poly3DCollection(edges(cuboid.vertices), linewidths=2, edgecolors='k', alpha=0.5, facecolor=colors(i % 10)))

@@ -91,6 +91,10 @@ def get_joint_position(clientID, handle):
         STREAMING_HANDLES_JOINT_POSITION.add(handle)
     return position
 
+def set_joint_position(clientID, handle, position):
+    response = vrep.simxSetJointPosition(clientID, handle, position, 
+                                         vrep.simx_opmode_oneshot)
+
 def get_joint_force(clientID, handle):
     is_request_initial = handle not in STREAMING_HANDLES_JOINT_FORCE
     mode = vrep.simx_opmode_streaming if is_request_initial else vrep.simx_opmode_buffer
@@ -102,15 +106,15 @@ def get_joint_force(clientID, handle):
         STREAMING_HANDLES_JOINT_FORCE.add(handle)
     return force
 
-def set_joint_target_velocity(clientID, handle, target_velocity):
-    response = vrep.simxSetJointTargetVelocity(clientID, handle, target_velocity,
-                                               vrep.simx_opmode_oneshot)
-
 def set_joint_force(clientID, handle, force):
     # This method does not always set the force in the way you expect.
     # It will depend on the control and dynamics mode of the joint.
     response = vrep.simxSetJointForce(clientID, handle, force,
                                       vrep.simx_opmode_oneshot)
+
+def set_joint_target_velocity(clientID, handle, target_velocity):
+    response = vrep.simxSetJointTargetVelocity(clientID, handle, target_velocity,
+                                               vrep.simx_opmode_oneshot)
 
 def get_object_position(clientID, handle, relative_to_handle=-1):
     '''Return the object position in reference to the relative handle.'''
@@ -183,17 +187,17 @@ def get_arm_joint_positions(clientID):
     joint_positions = [get_joint_position(clientID, j) for j in joint_handles]
     return joint_positions
 
+def set_arm_joint_positions(clientID, positions):
+    joint_handles = get_arm_joint_handles(clientID)
+    assert len(positions) == len(joint_handles), \
+        'Expected joint positions to be length {}, but it was length {} instead.'.format(len(positions), len(joint_handles))
+    for j, p in zip(joint_handles, positions):
+        set_joint_position(clientID, j, p)
+
 def get_arm_joint_forces(clientID):
     joint_handles = get_arm_joint_handles(clientID)
     joint_forces = [get_joint_force(clientID, j) for j in joint_handles]
     return joint_forces
-
-def set_arm_joint_target_velocities(clientID, target_velocities):
-    joint_handles = get_arm_joint_handles(clientID)
-    assert len(target_velocities) == len(joint_handles), \
-        'Expected joint target velocities to be length {}, but it was length {} instead.'.format(len(target_velocities), len(joint_handles))
-    for j, v in zip(joint_handles, target_velocities):
-        set_joint_target_velocity(clientID, j, v)
 
 def set_arm_joint_forces(clientID, forces):
     joint_handles = get_arm_joint_handles(clientID)
@@ -201,3 +205,10 @@ def set_arm_joint_forces(clientID, forces):
         'Expected joint forces to be length {}, but it was length {} instead.'.format(len(forces), len(joint_handles))
     for j, f in zip(joint_handles, forces):
         set_joint_force(clientID, j, f)
+
+def set_arm_joint_target_velocities(clientID, target_velocities):
+    joint_handles = get_arm_joint_handles(clientID)
+    assert len(target_velocities) == len(joint_handles), \
+        'Expected joint target velocities to be length {}, but it was length {} instead.'.format(len(target_velocities), len(joint_handles))
+    for j, v in zip(joint_handles, target_velocities):
+        set_joint_target_velocity(clientID, j, v)
