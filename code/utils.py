@@ -43,6 +43,15 @@ def print_pose(pose):
     return R, T
 
 
+def convert_directed_to_undirected_graph(graph):
+    undirected_graph = graph.copy()
+    for node in graph:
+        for child, weight in graph[node].items():
+            if child not in graph or node not in graph[child]:
+                undirected_graph.setdefault(child, {})[node] = weight
+    return undirected_graph
+
+
 class URDFRobot:
     def __init__(self, filename):
         self.robot = self.parse_urdf(filename)

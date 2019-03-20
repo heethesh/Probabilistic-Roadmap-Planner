@@ -114,14 +114,15 @@ class CollisionChecker:
             projects1 = inner1d(normal, cub1.vertices)
             projects2 = inner1d(normal, cub2.vertices)
             
-            # Gap detected
+            # Gap detected - no collision
             if np.max(projects1) < np.min(projects2) or \
                np.max(projects2) < np.min(projects1): return False
 
+        # Cuboids in collision
         return True
 
     @staticmethod
-    def display_cuboids(cuboids, title=None, savefile=None):
+    def display_cuboids(cuboids, title=None, savefile=None, return_ax=False):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.set_aspect('equal')
@@ -157,6 +158,7 @@ class CollisionChecker:
         ax.set_ylabel('Y-Axis')
         ax.set_zlabel('Z-Axis')
 
+        if return_ax: return ax
         if title: plt.title(title)
         if savefile: fig.savefig('%s.jpg' % savefile, dpi=480, bbox_inches='tight')
         else: plt.show()

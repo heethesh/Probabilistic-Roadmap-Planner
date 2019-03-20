@@ -74,12 +74,14 @@ class ForwardKinematicsSolver:
         self.link_to_joints = []
 
     def update_joints(self, joint_angles, joint_poses=None):
-        print('>>> Joint Angles:', np.degrees(joint_angles))
+        # print('>>> Joint Angles:', np.degrees(joint_angles))
+        # Check dimensions
 
         if self.joints:
             for joint, offset in zip(self.joints, joint_angles):
                 joint.set_joint_offset(offset)
         else:
+            assert len(joint_angles) == len(joint_poses)
             for i, joint_name in enumerate(JOINT_NAMES):
                 # Get joint axis from URDF
                 axis = self.robot.get_joint_axis(joint_name)
@@ -93,6 +95,9 @@ class ForwardKinematicsSolver:
                     axis=axis, offset=joint_angles[i], name=joint_name))
 
     def compute(self, links, joint_angles, joint_poses=None, setup=False):
+        # Check dimensions
+        assert len(joint_angles) >= 4
+
         # Update joint angles
         self.update_joints(joint_angles, joint_poses)
         
@@ -120,9 +125,11 @@ class ForwardKinematicsSolver:
                 _, _, R, T, _ = decompose_matrix(link_pose)
                 
                 # Create link cuboids
-                link_cuboids.append(Cuboid(T, R, links[i + 1].dxyz))
+                link_cuboids.append(Cuboid(T, R, links[i + 1].dxyz, links[i + 1].name))
 
-        return link_cuboids
+        # Return wrist pose and link cuboids
+        _, _, R, T, _ = decompose_matrix(wrist_pose)
+        return R, T, link_cuboids
 
     # Backward compatible
     @staticmethod
@@ -156,7 +163,7 @@ class ForwardKinematicsSolver:
     @staticmethod
     def getWristJacobian(joint_angle_list, robot, joint_names):
         '''
-        Get the wrist jacobian for given joint angle configuration.
+        Get the wrist Jacobian for given joint angle configuration.
 
         joint_angle_list: List of joint angles to get final wrist pose for
         kwargs: Other keyword arguments use as required.
@@ -187,7 +194,7 @@ def main(args):
     # Parse URDF XML
     robot = URDFRobot('urdf/locobot_description_v3.urdf')
 
-    # Compute end effector pose and jacobian
+    # Compute end effector pose and Jacobian
     pose = ForwardKinematicsSolver.getWristPose(joint_angles, robot, joint_names)
     jacobian = ForwardKinematicsSolver.getWristJacobian(joint_angles, robot, joint_names)
 
@@ -203,7 +210,7 @@ def test():
     # Parse URDF XML
     robot = URDFRobot('urdf/locobot_description_v3.urdf')
 
-    # Compute end effector pose and jacobian
+    # Compute end effector pose and Jacobian
     poses = ForwardKinematicsSolver.getWristPose(joint_angles, robot, joint_names, intermediate_pose=True)
     for i, (pose, axis) in enumerate(poses): print_pose(pose)
 
