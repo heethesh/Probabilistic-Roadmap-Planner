@@ -1,3 +1,20 @@
+'''
+16-662 Robot Autonomy (Spring 2019)
+Homework 2 - Motion Planning and Collision Avoidance
+Author: Heethesh Vhavle
+Email: heethesh@cmu.edu
+Version: 1.0.0
+
+The order of the targets are as follows:
+    joint_1 / revolute  / arm_base_link <- shoulder_link
+    joint_2 / revolute  / shoulder_link <- elbow_link
+    joint_3 / revolute  / elbow_link    <- forearm_link
+    joint_4 / revolute  / forearm_link  <- wrist_link
+    joint_5 / revolute  / wrist_link    <- gripper_link
+    joint_6 / prismatic / gripper_link  <- finger_r
+    joint_7 / prismatic / gripper_link  <- finger_l
+'''
+
 # Python 2/3 compatibility
 from __future__ import print_function
 

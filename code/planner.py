@@ -1,4 +1,10 @@
 '''
+16-662 Robot Autonomy (Spring 2019)
+Homework 2 - Motion Planning and Collision Avoidance
+Author: Heethesh Vhavle
+Email: heethesh@cmu.edu
+Version: 1.0.0
+
 The order of the targets are as follows:
     joint_1 / revolute  / arm_base_link <- shoulder_link
     joint_2 / revolute  / shoulder_link <- elbow_link
@@ -124,7 +130,7 @@ class ProbabilisticRoadMap:
         for i, node in enumerate(nodes):
             # Find k-nearest neighbors
             [distances], [args] = self.kdtree.query(node.reshape(1, -1), k=K + 1)
-            print('%d NN:' % K, i, args[1:])
+            if verbose: print('%d NN:' % K, i, args[1:])
 
             # Run local planner between current node and all nearest nodes
             for arg, dist in zip(args[1:], distances[1:]):
@@ -203,7 +209,7 @@ class ProbabilisticRoadMap:
         if verbose: 
             print('\nRoadmap:')
             pp.pprint(self.roadmap)
-        # self.display_roadmap()
+        self.display_roadmap()
 
         # Run the path planner
         return self.path_planner(verbose=verbose)
@@ -319,7 +325,7 @@ class ProbabilisticRoadMap:
             for val in self.roadmap[key]:
                 try: values_pos.append(self.fksolver.compute(self.link_cuboids, self.kdtree.data[val])[1])
                 except TypeError:
-                    print('Skipping display of %s children' % key)
+                    print('Skipping display of node %s\'s children' % key)
                     continue
 
             # Label 3D coordinates
@@ -370,7 +376,7 @@ def main():
             urdf='urdf/locobot_description_v3.urdf', load_graph=True)
 
         # Run planner
-        ret, joint_plan, gripper_plan = prm_planner.plan(N=1000, K=50, verbose=False)
+        ret, joint_plan, gripper_plan = prm_planner.plan(N=100, K=10, verbose=False)
 
         # Planning successful
         if ret:
@@ -391,7 +397,7 @@ def main():
         vu.stop_sim(clientID)
 
     # Plot time histories
-    if success: controller.plot()
+    if success: controller.plot(savefile=True)
 
 
 if __name__ == '__main__':

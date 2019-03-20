@@ -1,3 +1,11 @@
+'''
+16-662 Robot Autonomy (Spring 2019)
+Homework 2 - Motion Planning and Collision Avoidance
+Author: Heethesh Vhavle
+Email: heethesh@cmu.edu
+Version: 1.0.0
+'''
+
 # Python 2/3 compatibility
 from __future__ import print_function
 

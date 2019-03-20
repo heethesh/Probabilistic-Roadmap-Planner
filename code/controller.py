@@ -1,3 +1,11 @@
+'''
+16-662 Robot Autonomy (Spring 2019)
+Homework 2 - Motion Planning and Collision Avoidance
+Author: Heethesh Vhavle
+Email: heethesh@cmu.edu
+Version: 1.0.0
+'''
+
 # Python 2/3 compatibility
 from __future__ import print_function
 
@@ -105,16 +113,20 @@ class ArmController:
         
         return False
 
-    def plot(self):
+    def plot(self, savefile=False):
         for i in range(vu.N_ARM_JOINTS):
+            fig = plt.figure()
             plt.plot(self.history['timestamp'], np.array(self.history['joint_feedback'])[:, i])
             plt.plot(self.history['timestamp'], np.array(self.history['joint_target'])[:, i])
             plt.legend(labels=['Joint Sensed', 'Joint Target'], title='Legend', loc=0, fontsize='small', fancybox=True)
             plt.title('Time Response for Joint %d' % (i + 1))
             plt.xlabel('Timestamp (s)')
+            
             if i > 4: plt.ylabel('Joint Displacement (m)')
             else: plt.ylabel('Joint Angle (rad)')
-            plt.show()
+            
+            if savefile: fig.savefig('joints/joint-%d.jpg' % (i + 1), dpi=480, bbox_inches='tight')
+            else: plt.show()
 
     def execute(self, joint_targets, gripper_targets):
         # Iterate through target joint positions
